@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Markdown Viewer</title>
+<style>{{STYLES}}</style>
+<script><!-- MERMAID_JS --></script>
+</head>
+<body>
+{{CONTENT}}
+<script>
+console.log("[mdviewer] page loaded, children:", document.body.children.length);
+if (document.body.children.length === 0) {
+    console.warn("[mdviewer] body is EMPTY — content may not have rendered");
+} else {
+    const first = document.body.firstElementChild;
+    if (first && typeof getComputedStyle !== 'undefined') {
+        const style = getComputedStyle(first);
+        console.log("[mdviewer] first child:", first.tagName, "computed height:", style.height, "visibility:", style.visibility, "display:", style.display);
+    }
+}
+window.addEventListener('DOMContentLoaded', () => {
+    console.log("[mdviewer] DOMContentLoaded, body.textContent length:", document.body.textContent.length);
+});
+</script>
+<script>
+mermaid.initialize({startOnLoad: true});
+</script>
+</body>
+</html>
