@@ -50,9 +50,9 @@ jobs:
           VERSION=${VERSION#v}
           tar czf markdownviewer_${VERSION}_amd64.tar.gz \
             --transform "s|^|markdownviewer/|" \
-            -C target/release markdownviewer \
-            -C ../.. packaging/markdownviewer.desktop \
-            -C ../.. icons/app-icon-16.png icons/app-icon-32.png icons/app-icon-48.png icons/app-icon-64.png icons/app-icon-128.png icons/app-icon-256.png icons/app-icon-512.png
+            target/release/markdownviewer \
+            packaging/markdownviewer.desktop \
+            icons/app-icon-16.png icons/app-icon-32.png icons/app-icon-48.png icons/app-icon-64.png icons/app-icon-128.png icons/app-icon-256.png icons/app-icon-512.png
 
       - name: Upload binary tarball to release
         uses: softprops/action-gh-release@v2
