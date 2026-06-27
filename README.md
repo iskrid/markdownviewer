@@ -18,7 +18,7 @@ Minimal, fast Markdown viewer for Linux. Renders Markdown in a system webview wi
 Download the `.deb` package from the [Releases](https://github.com/iskrid/markdownviewer/releases) page:
 
 ```bash
-sudo dpkg -i markdownviewer_1.1.2_amd64.deb
+sudo dpkg -i markdownviewer_1.1.3_amd64.deb
 ```
 
 **Runtime dependencies:** `libwebkit2gtk-4.1-0`, `libgtk-3-0` (usually pre-installed on desktop Ubuntu).
