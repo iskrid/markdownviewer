@@ -1,11 +1,11 @@
 [package]
 name = "markdownviewer"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Minimal, fast Markdown viewer with syntax highlighting and Mermaid diagrams"
 license = "MIT"
-repository = "https://github.com/dsimon/markdownviewer"
+repository = "https://github.com/iskrid/markdownviewer"
 
 [[bin]]
 name = "markdownviewer"
@@ -33,3 +33,15 @@ codegen-units = 1
 strip = true
 opt-level = "z"
 panic = "abort"
+
+[package.metadata.deb]
+maintainer = "iskrid"
+copyright = "2025, iskrid"
+license-file = ["LICENSE", "4"]
+depends = "libwebkit2gtk-4.1-0, libgtk-3-0, libc6"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/markdownviewer", "usr/bin/", "755"],
+]
+arch = "amd64"
