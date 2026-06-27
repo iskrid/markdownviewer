@@ -44,4 +44,3 @@ priority = "optional"
 assets = [
     ["target/release/markdownviewer", "usr/bin/", "755"],
 ]
-arch = "amd64"
