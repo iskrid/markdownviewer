@@ -21,13 +21,15 @@ jobs:
 
       - name: Build .deb package
         run: |
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
           cargo install cargo-deb --locked
-          cargo deb --output target/debian/markdownviewer_${{ github.ref_name#v }}_amd64.deb
+          cargo deb --output target/debian/markdownviewer_${VERSION}_amd64.deb
 
       - name: Upload .deb to release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/debian/markdownviewer_${{ github.ref_name#v }}_amd64.deb
+          files: target/debian/markdownviewer_*_amd64.deb
 
   build-binary:
     runs-on: ubuntu-24.04
@@ -44,11 +46,13 @@ jobs:
 
       - name: Create tarball
         run: |
-          tar czf markdownviewer_${{ github.ref_name#v }}_amd64.tar.gz \
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          tar czf markdownviewer_${VERSION}_amd64.tar.gz \
             --transform "s|^|markdownviewer/|" \
             -C target/release markdownviewer
 
       - name: Upload binary tarball to release
         uses: softprops/action-gh-release@v2
         with:
-          files: markdownviewer_${{ github.ref_name#v }}_amd64.tar.gz
+          files: markdownviewer_*_amd64.tar.gz
