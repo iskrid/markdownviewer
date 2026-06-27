@@ -3,6 +3,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::{fs, io};
 
+mod app_icon;
 mod assets;
 mod render;
 
@@ -49,8 +50,16 @@ fn load_markdown(arg: &str) -> anyhow::Result<String> {
 
 fn run_app(html_doc: String, _md_path: String) -> ! {
     let event_loop = EventLoop::new();
+    let icon = tao::window::Icon::from_rgba(
+        app_icon::APP_ICON_RGBA.to_vec(),
+        app_icon::APP_ICON_W,
+        app_icon::APP_ICON_H,
+    )
+    .expect("failed to create icon");
+
     let window = tao::window::WindowBuilder::new()
         .with_title("Markdown Viewer")
+        .with_window_icon(Some(icon))
         .build(&event_loop)
         .expect("failed to create window");
 
