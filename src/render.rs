@@ -43,7 +43,15 @@ impl SyntaxHighlighterAdapter for SyntectHighlighter {
         let syntax = self
             .syntax_set
             .find_syntax_by_token(lang_str)
+            .or_else(|| self.syntax_set.find_syntax_by_extension(lang_str))
             .or_else(|| self.syntax_set.find_syntax_by_first_line(code))
+            .or_else(|| {
+                if lang_str == "typescript" {
+                    self.syntax_set.find_syntax_by_token("javascript")
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
 
         let mut highlighter = HighlightLines::new(syntax, theme);
