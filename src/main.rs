@@ -15,24 +15,26 @@ use wry::WebViewBuilderExtUnix;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2 {
-        eprintln!("Usage: {} [FILE.md | -]", &args[0]);
-        std::process::exit(1);
-    }
-
-    println!("[markdownviewer] Input: {}", &args[1]);
-    let md_path = args[1].clone();
-    let (_base_dir, base_dir_opt) = if &md_path != "-" {
-        let path = PathBuf::from(&md_path)
-            .parent()
-            .and_then(|p| p.canonicalize().ok());
-        (path.clone(), path)
+    let md_path = args.get(1).cloned();
+    let (md_text, base_dir_opt) = if let Some(path) = &md_path {
+        let loaded = load_markdown(path).unwrap();
+        let bd = if path != "-" {
+            PathBuf::from(path)
+                .parent()
+                .and_then(|p| p.canonicalize().ok())
+        } else {
+            None
+        };
+        (loaded, bd)
     } else {
-        (None, None)
+        (String::new(), None)
     };
 
-    let md_text = load_markdown(&args[1]).unwrap();
-    let html_body = render::render(&md_text, base_dir_opt.as_deref());
+    let html_body = if md_path.is_some() {
+        render::render(&md_text, base_dir_opt.as_deref())
+    } else {
+        "<div class=\"empty-state\">*.md</div>".to_string()
+    };
     let full_doc = assets::get_full_document(&html_body);
 
     run_app(full_doc, md_path)
@@ -48,7 +50,7 @@ fn load_markdown(arg: &str) -> anyhow::Result<String> {
     }
 }
 
-fn run_app(html_doc: String, _md_path: String) -> ! {
+fn run_app(html_doc: String, _md_path: Option<String>) -> ! {
     let event_loop = EventLoop::new();
     let icon = tao::window::Icon::from_rgba(
         app_icon::APP_ICON_RGBA.to_vec(),
@@ -69,10 +71,11 @@ fn run_app(html_doc: String, _md_path: String) -> ! {
     );
 
     let ipc_handler = move |request: http::Request<String>| {
-        println!(
-            "[markdownviewer] IPC message received (ignored): {}",
-            request.body()
-        );
+        let body = request.body();
+        if body.contains(r#""type":"close""#) {
+            std::process::exit(0);
+        }
+        println!("[markdownviewer] IPC message received (ignored): {}", body);
     };
 
     let webview_builder = wry::WebViewBuilder::new()
