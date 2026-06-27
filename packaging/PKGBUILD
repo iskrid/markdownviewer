@@ -10,12 +10,12 @@ license=(MIT)
 depends=(webkit2gtk-4.1 gtk3)
 makedepends=(cargo rust)
 source=("https://github.com/iskrid/markdownviewer/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=(SKIP)
+sha256sums=("425074380e9f0fec84853d43d886e39f64a2a6edd4ce00904093872b13d44bcf")
 
 prepare() {
     export RUSTUP_TOOLCHAIN=stable
     cd "${pkgname}-${pkgver}"
-    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+    cargo fetch --target "$(rustc -vV | sed -n 's/host: //p')"
 }
 
 build() {
