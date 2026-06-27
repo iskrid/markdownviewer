@@ -1,6 +1,8 @@
+use std::cell::RefCell;
 use std::env;
 use std::io::Read;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::{fs, io};
 
 mod app_icon;
@@ -9,6 +11,7 @@ mod render;
 
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoop};
+use wry::DragDropEvent;
 #[cfg(target_os = "linux")]
 use wry::WebViewBuilderExtUnix;
 
@@ -37,7 +40,7 @@ fn main() {
     };
     let full_doc = assets::get_full_document(&html_body);
 
-    run_app(full_doc, md_path)
+    run_app(full_doc)
 }
 
 fn load_markdown(arg: &str) -> anyhow::Result<String> {
@@ -50,7 +53,31 @@ fn load_markdown(arg: &str) -> anyhow::Result<String> {
     }
 }
 
-fn run_app(html_doc: String, _md_path: Option<String>) -> ! {
+fn load_and_render(path: &str) -> Option<String> {
+    let md_text = match load_markdown(path) {
+        Ok(t) => t,
+        Err(e) => {
+            println!("[markdownviewer] Failed to read '{}': {}", path, e);
+            return None;
+        }
+    };
+    let bd = PathBuf::from(path)
+        .parent()
+        .and_then(|p| p.canonicalize().ok());
+    let html_body = render::render(&md_text, bd.as_deref());
+    Some(html_body)
+}
+
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
+        .replace('"', "\\\"")
+        .replace('\'', "\\'")
+}
+
+fn run_app(html_doc: String) -> ! {
     let event_loop = EventLoop::new();
     let icon = tao::window::Icon::from_rgba(
         app_icon::APP_ICON_RGBA.to_vec(),
@@ -70,6 +97,11 @@ fn run_app(html_doc: String, _md_path: Option<String>) -> ! {
         html_doc.len()
     );
 
+    let webview_rc = Rc::new(RefCell::new(Option::<wry::WebView>::None));
+
+    let drag_paths = Rc::new(RefCell::new(Vec::new()));
+    let drag_paths_clone = Rc::clone(&drag_paths);
+
     let ipc_handler = move |request: http::Request<String>| {
         let body = request.body();
         if body.contains(r#""type":"close""#) {
@@ -78,34 +110,56 @@ fn run_app(html_doc: String, _md_path: Option<String>) -> ! {
         println!("[markdownviewer] IPC message received (ignored): {}", body);
     };
 
-    let webview_builder = wry::WebViewBuilder::new()
+    let builder = wry::WebViewBuilder::new()
         .with_html(html_doc)
-        .with_ipc_handler(ipc_handler);
+        .with_ipc_handler(ipc_handler)
+        .with_drag_drop_handler(move |event: DragDropEvent| -> bool {
+            match event {
+                DragDropEvent::Drop { paths, .. } => {
+                    let mut pending = drag_paths_clone.borrow_mut();
+                    for p in paths {
+                        if p.extension()
+                            .is_some_and(|ext| ext == "md" || ext == "markdown")
+                        {
+                            pending.push(p);
+                        }
+                    }
+                    true
+                }
+                _ => true,
+            }
+        });
 
-    #[cfg(not(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-    )))]
-    let _webview = {
-        use tao::platform::unix::WindowExtUnix;
-        let vbox = window.default_vbox().expect("failed to get vbox");
-        webview_builder.build_gtk(vbox)
+    let webview = {
+        #[cfg(not(any(
+            target_os = "windows",
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "android"
+        )))]
+        {
+            use tao::platform::unix::WindowExtUnix;
+            let vbox = window.default_vbox().expect("failed to get vbox");
+            builder.build_gtk(vbox).expect("failed to build webview")
+        }
+
+        #[cfg(any(
+            target_os = "windows",
+            target_os = "macos",
+            target_os = "ios",
+            target_os = "android"
+        ))]
+        {
+            builder.build(&window).expect("failed to build webview")
+        }
     };
 
-    #[cfg(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-    ))]
-    let _webview = webview_builder.build(&window);
+    *webview_rc.borrow_mut() = Some(webview);
 
     println!("[markdownviewer] Webview ready, starting event loop...");
 
     event_loop.run(
-        move |event: Event<'_, ()>, _, control_flow: &mut ControlFlow| {
+        move |event: Event<'_, ()>, _event_loop_window_target, control_flow: &mut ControlFlow| {
             *control_flow = ControlFlow::Poll;
 
             if let Event::WindowEvent {
@@ -115,6 +169,18 @@ fn run_app(html_doc: String, _md_path: Option<String>) -> ! {
             {
                 println!("[markdownviewer] Shutting down...");
                 std::process::exit(0);
+            }
+
+            let mut pending = drag_paths.borrow_mut();
+            while let Some(path) = pending.pop() {
+                if let Some(body) = load_and_render(path.to_str().unwrap_or("")) {
+                    let escaped = escape_js_string(&body);
+                    let js = format!("replaceContent('{}')", escaped);
+                    let mut wv_ref = webview_rc.borrow_mut();
+                    if let Some(wv) = &mut *wv_ref {
+                        let _ = wv.evaluate_script(&js);
+                    }
+                }
             }
         },
     );
