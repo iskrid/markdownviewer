@@ -1,5 +1,7 @@
 # markdownviewer
 
+![Markdown Viewer Screenshot](assets/screenshoot.png)
+
 Minimal, fast Markdown viewer for Linux. Renders Markdown in a system webview with syntax-highlighted code blocks and Mermaid diagrams. No menus, no toolbar — just the document.
 
 ## Features
