@@ -1,95 +1,211 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::path::Path;
 
-static DEFAULT_SYNTAX_THEME: &[u8] = syntect::default_themes::LIGHT;
+use comrak::adapters::SyntaxHighlighterAdapter;
+use comrak::options::Plugins;
+use comrak::Options;
 
-fn get_syntax_theme() -> syntect::LoadingResult<syntect::HighlightingTheme> {
-    syntect::parsing::SyntaxSet::load_defaults_newlines();
-    syntect::highlighting::ThemeSet::load_defaults_newlines();
-    let themes = syntect::highlighting::ThemeSet::load_defaults_newlines();
-    Ok(themes.themes["base16-light"].clone())
+use syntect::easy::HighlightLines;
+use syntect::highlighting::{Color, ThemeSet};
+use syntect::html::{append_highlighted_html_for_styled_line, IncludeBackground};
+use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
+
+struct SyntectHighlighter {
+    syntax_set: SyntaxSet,
+    theme_set: ThemeSet,
 }
 
-fn highlight_block(
-    code: &str,
-    language_hint: Option<&str>,
-    syntax_set: &syntect::parsing::SyntaxSet,
-    theme: &syntect::highlighting::HighlightingTheme,
-) -> syntect::LoadingResult<String> {
-    let syntax = if let Some(lang) = language_hint {
-        syntax_set.find_syntax_by_token(lang).or_else(|| syntax_set.find_syntax_by_extension(lang))
-    } else {
-        None
-    };
-
-    match syntax {
-        None => Ok(code.to_owned()),
-        Some(syntax) => {
-            let parsed = syntect::easy::highlight_from_reader(
-                code.as_bytes(),
-                syntax_set,
-                syntax,
-                theme,
-            )?;
-            Ok(String::from_utf8_lossy(&parsed).into_owned())
+impl SyntectHighlighter {
+    fn new() -> Self {
+        Self {
+            syntax_set: SyntaxSet::load_defaults_newlines(),
+            theme_set: ThemeSet::load_defaults(),
         }
     }
 }
 
-struct SyntaxHighlighterAdapter {
-    syntax_set: syntect::parsing::SyntaxSet,
-    theme: syntect::highlighting::HighlightingTheme,
-}
-
-impl SyntaxHighlighterAdapter {
-    fn new() -> Self {
-        let syntax_set = syntect::parsing::SyntaxSet::load_defaults_newlines();
-        let themes = syntect::highlighting::ThemeSet::load_defaults_newlines();
-        let theme = themes.themes["base16-light"].clone();
-        Self { syntax_set, theme }
-    }
-}
-
-impl comrak::plugin::format::html::CodeOutput {
-    fn to_highlighted(
-        code: &str,
-        language_hint: Option<&str>,
-        adapter: &SyntaxHighlighterAdapter,
-    ) -> String {
-        highlight_block(code, language_hint, &adapter.syntax_set, &adapter.theme).unwrap_or_else(|_| code.to_owned())
-    }
-}
-
-struct SyntectHighlighter;
-
-impl comrak::plugin::format::html::CodeOutput for SyntectHighlighter {
-    fn get_highlighted_code(
+impl SyntaxHighlighterAdapter for SyntectHighlighter {
+    fn write_highlighted(
         &self,
-        syntax: Option<&str>,
-        value: Vec<u8>,
-        _code_str_without_backticks: &str,
-    ) -> String {
-        let code = String::from_utf8_lossy(&value);
-        highlight_block(
-            &code,
-            syntax,
-            &load_default_syntax_set(),
-            &get_light_theme(),
-        ).unwrap_or_else(|_| code.to_string())
+        output: &mut dyn fmt::Write,
+        lang: Option<&str>,
+        code: &str,
+    ) -> fmt::Result {
+        let theme = self.theme_set.themes.get("InspiredGitHub").unwrap();
+        let lang_str = match lang {
+            Some(l) if !l.is_empty() => l.split_once(',').map(|(left, _)| left).unwrap_or(l),
+            _ => "Plain Text",
+        };
+
+        let syntax = self
+            .syntax_set
+            .find_syntax_by_token(lang_str)
+            .or_else(|| self.syntax_set.find_syntax_by_first_line(code))
+            .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
+
+        let mut highlighter = HighlightLines::new(syntax, theme);
+        let mut html = String::new();
+
+        for line in LinesWithEndings::from(code) {
+            match highlighter.highlight_line(line, &self.syntax_set) {
+                Ok(regions) => {
+                    let bg = theme
+                        .settings
+                        .background
+                        .map(|c| (c.r as u32) << 16 | (c.g as u32) << 8 | (c.b as u32))
+                        .unwrap_or(0xf6f8fa);
+                    append_highlighted_html_for_styled_line(
+                        &regions[..],
+                        IncludeBackground::IfDifferent(Color {
+                            r: ((bg >> 16) & 0xff) as u8,
+                            g: ((bg >> 8) & 0xff) as u8,
+                            b: (bg & 0xff) as u8,
+                            a: 0xff,
+                        }),
+                        &mut html,
+                    )
+                    .map_err(|_| fmt::Error)?;
+                }
+                Err(_) => return output.write_str(code),
+            };
+        }
+
+        output.write_str(&html)
+    }
+
+    fn write_pre_tag(
+        &self,
+        output: &mut dyn fmt::Write,
+        attributes: HashMap<&'static str, Cow<'_, str>>,
+    ) -> fmt::Result {
+        let theme = self.theme_set.themes.get("InspiredGitHub").unwrap();
+        let bg = theme.settings.background.unwrap_or(Color {
+            r: 0xf6,
+            g: 0xf8,
+            b: 0xfa,
+            a: 0xff,
+        });
+
+        output.write_str("<pre")?;
+        for (key, value) in attributes.iter() {
+            output.write_str(" ")?;
+            if *key == "style" {
+                let bg_style = format!("background-color:#{:02x}{:02x}{:02x};", bg.r, bg.g, bg.b);
+                output.write_str(&format!("{}=\"{}{}\"", key, bg_style, value))?;
+            } else {
+                output.write_str(&format!("{}=\"{}\"", key, escape_html(value)))?;
+            }
+        }
+        output.write_str(">")
+    }
+
+    fn write_code_tag(
+        &self,
+        output: &mut dyn fmt::Write,
+        attributes: HashMap<&'static str, Cow<'_, str>>,
+    ) -> fmt::Result {
+        output.write_str("<code")?;
+        for (key, value) in attributes.iter() {
+            output.write_str(" ")?;
+            output.write_str(&format!("{}=\"{}\"", key, escape_html(value)))?;
+        }
+        output.write_str(">")
     }
 }
 
-fn load_markdown_to_html(md: &str) -> String {
-    comrak::markdown_to_html(md, &comrak::Options::default())
+fn rewrite_relative_urls(html: &str, base_dir: Option<&Path>) -> String {
+    let Some(base) = base_dir else {
+        return html.to_string();
+    };
+
+    let re_url = regex::Regex::new(r#"(?P<attr>src|href)\s*=\s*"(?P<path>[^"]*)""#).unwrap();
+
+    re_url
+        .replace_all(html, |caps: &regex::Captures| {
+            let attr_name = &caps["attr"];
+            let path = &caps["path"];
+
+            if path.starts_with("http://") || path.starts_with("https://") || path.starts_with("#")
+            {
+                format!(r#"{}="{}""#, attr_name, path)
+            } else {
+                let full_path = base.join(path);
+                let abs_path = match full_path.canonicalize() {
+                    Ok(p) => p.to_string_lossy().to_string(),
+                    Err(_) => full_path.to_string_lossy().to_string(),
+                };
+                format!(r#"{}="md://asset/{}""#, attr_name, abs_path)
+            }
+        })
+        .to_string()
+}
+
+fn transform_mermaid_blocks(html: &str) -> String {
+    let re = regex::Regex::new(
+        r#"(?s)<pre[^>]*><code[^>]*class="[^"]*language-mermaid[^"]*">(.*?)</code>\s*</pre>"#,
+    )
+    .unwrap();
+
+    let result = re
+        .replace_all(html, |caps: &regex::Captures| {
+            let raw = &caps[1];
+            let stripped = strip_html_tags(raw);
+            let decoded = decode_html_entities(&stripped);
+            format!(r#"<pre class="mermaid">{}</pre>"#, escape_html(&decoded))
+        })
+        .to_string();
+
+    result
+}
+
+fn decode_html_entities(s: &str) -> String {
+    s.replace("&quot;", "\"")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&apos;", "'")
+        .replace("&nbsp;", " ")
+}
+
+fn strip_html_tags(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut in_tag = false;
+    for c in s.chars() {
+        if c == '<' {
+            in_tag = true;
+        } else if c == '>' {
+            in_tag = false;
+        } else if !in_tag {
+            result.push(c);
+        }
+    }
+    result
+}
+
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 pub fn render(md_text: &str, base_dir: Option<&Path>) -> String {
-    let mut opts = comrak::Options::default();
+    let mut opts = Options::default();
     opts.extension.strikethrough = true;
     opts.extension.table = true;
     opts.extension.tasklist = true;
-    opts.extension.tagfilter = false;
     opts.render.hardbreaks = false;
-    opts.render.github_pre_lang = false;
 
-    let adapter = SyntaxHighlighterAdapter::new();
+    let adapter = SyntectHighlighter::new();
+
+    let mut plugins = Plugins::default();
+    plugins.render.codefence_syntax_highlighter = Some(&adapter);
+
+    let html = comrak::markdown_to_html_with_plugins(md_text, &opts, &plugins);
+
+    transform_mermaid_blocks(&rewrite_relative_urls(&html, base_dir))
+}

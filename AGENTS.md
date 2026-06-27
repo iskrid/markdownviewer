@@ -29,14 +29,13 @@ markdownviewer/
   Cargo.toml              - manifest; release profile tuned for size/startup
   AGENTS.md               - this file
   IMPLEMENTATION_PLAN.md  - full design + rationale
+  example.md              - demo document with mermaid, code blocks, tables
   src/
-    main.rs     - entry: arg parse, read input, build window + webview, event loop, key handling
+    main.rs     - entry: arg parse, read input, build window + webview, event loop
     render.rs   - md -> HTML: comrak + custom syntect SyntaxHighlighterAdapter, mermaid-block transform, relative-URL rewriting
-    ipc.rs      - message handling (external_link, open_md) from JS bridge
-    config.rs   - load/save window size to ~/.config/markdownviewer/size
     assets.rs   - include_str!/include_bytes! of template.html, mermaid.min.js, styles.css
   assets/
-    template.html  - shell: <div id="content">, inlined mermaid.min.js, init + IPC bridge script
+    template.html  - shell: inlined mermaid.min.js, init + IPC bridge script
     mermaid.min.js - mermaid.js v11 standalone bundle (embedded into binary)
     styles.css     - GitHub-light styling for prose + code blocks + mermaid containers
 ```

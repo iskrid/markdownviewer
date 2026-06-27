@@ -47,17 +47,13 @@ The following diagram illustrates the recursive decision tree for moving **3 dis
 
 ```mermaid
 flowchart LR
-    Start[Move 3 disks\nA → C via B] --> Step1["Move 2 disks:\nA → B via C"]
-    Step1 --> Base1["Move disk 1:\nA → C"]
-    Base1 --> Step2["Move disk 2:\nA → B"]
-    Step2 --> Step3["Move 2 disks:\nB → C via A"]
-
-    Step1 --- Helper1["Helper: Move 1\nB → C via A"]
-    Base2["Move disk 3:\nA → C"]
-    Step2 --> Base2
-    Base2 --> Step4["Move 1\nc → a]
-
-    Sub4 --> End(["Done! All disks\non peg C"])
+    Start["Move 3 disks\nA → C via B"] --> Step1["Move 2 disks\nA → B via C"]
+    Step1 --> Base1["Move disk 1\nA → C"]
+    Base1 --> Step2["Move disk 2\nA → B"]
+    Step2 --> Step3["Move 2 disks\nB → C via A"]
+    Step3 --> Base2["Move disk 3\nA → C"]
+    Base2 --> Step4["Move 1 disk\nC → A"]
+    Step4 --> End(["Done!\nAll disks on peg C"])
 ```
 
 ## Implementation: TypeScript
@@ -119,6 +115,18 @@ The Rust version collects all moves into a `Vec<String>` so they can be counted 
 
 - **Time complexity**: $O(2^n)$ — each problem instance spawns two subproblems of size `n - 1`.
 - **Space complexity**: $O(n)$ on the call stack, since recursion goes exactly _n_ levels deep before hitting the base case and unwinding.
+
+## Recursion Pattern
+
+The call structure for any recursive solution follows this simple pattern:
+
+```mermaid
+graph TD
+    A["hanoi(n)"] --> B["hanoi(n-1)"]
+    B --> C["hanoi(n-2)"]
+    C --> D["hanoi(1)"]
+    D --> E["base case: return"]
+```
 
 ## Key Takeaways
 

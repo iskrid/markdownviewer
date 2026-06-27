@@ -1,8 +1,15 @@
 use std::env;
-use std::fs;
-use std::io::{self, Read};
+use std::io::Read;
+use std::path::PathBuf;
+use std::{fs, io};
 
 mod assets;
+mod render;
+
+use tao::event::{Event, WindowEvent};
+use tao::event_loop::{ControlFlow, EventLoop};
+#[cfg(target_os = "linux")]
+use wry::WebViewBuilderExtUnix;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -13,11 +20,21 @@ fn main() {
     }
 
     println!("[markdownviewer] Input: {}", &args[1]);
+    let md_path = args[1].clone();
+    let (_base_dir, base_dir_opt) = if &md_path != "-" {
+        let path = PathBuf::from(&md_path)
+            .parent()
+            .and_then(|p| p.canonicalize().ok());
+        (path.clone(), path)
+    } else {
+        (None, None)
+    };
+
     let md_text = load_markdown(&args[1]).unwrap();
-    let html_body = render_html(&md_text);
+    let html_body = render::render(&md_text, base_dir_opt.as_deref());
     let full_doc = assets::get_full_document(&html_body);
 
-    run_app(full_doc)
+    run_app(full_doc, md_path)
 }
 
 fn load_markdown(arg: &str) -> anyhow::Result<String> {
@@ -30,29 +47,28 @@ fn load_markdown(arg: &str) -> anyhow::Result<String> {
     }
 }
 
-fn render_html(md: &str) -> String {
-    let mut opts = comrak::Options::default();
-    opts.extension.strikethrough = true;
-    opts.extension.table = true;
-    opts.extension.tasklist = true;
-    comrak::markdown_to_html(md, &opts)
-}
-
-use tao::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-};
-#[cfg(target_os = "linux")]
-use wry::WebViewBuilderExtUnix;
-
-fn run_app(html_doc: String) -> ! {
+fn run_app(html_doc: String, _md_path: String) -> ! {
     let event_loop = EventLoop::new();
     let window = tao::window::WindowBuilder::new()
         .with_title("Markdown Viewer")
         .build(&event_loop)
-        .expect("Failed to create window");
+        .expect("failed to create window");
 
-    println!("[markdownviewer] Loading {} bytes of HTML", html_doc.len());
+    println!(
+        "[markdownviewer] Webview created with {} bytes of HTML",
+        html_doc.len()
+    );
+
+    let ipc_handler = move |request: http::Request<String>| {
+        println!(
+            "[markdownviewer] IPC message received (ignored): {}",
+            request.body()
+        );
+    };
+
+    let webview_builder = wry::WebViewBuilder::new()
+        .with_html(html_doc)
+        .with_ipc_handler(ipc_handler);
 
     #[cfg(not(any(
         target_os = "windows",
@@ -62,10 +78,8 @@ fn run_app(html_doc: String) -> ! {
     )))]
     let _webview = {
         use tao::platform::unix::WindowExtUnix;
-        wry::WebViewBuilder::new()
-            .with_html(html_doc)
-            .build_gtk(window.default_vbox().unwrap())
-            .expect("Failed to build webview")
+        let vbox = window.default_vbox().expect("failed to get vbox");
+        webview_builder.build_gtk(vbox)
     };
 
     #[cfg(any(
@@ -74,23 +88,21 @@ fn run_app(html_doc: String) -> ! {
         target_os = "ios",
         target_os = "android"
     ))]
-    let _webview = wry::WebViewBuilder::new()
-        .with_html(html_doc)
-        .build(&window)
-        .expect("Failed to build webview");
+    let _webview = webview_builder.build(&window);
 
-    println!("[markdownviewer] Webview ready, entering event loop ...");
+    println!("[markdownviewer] Webview ready, starting event loop...");
 
     event_loop.run(
         move |event: Event<'_, ()>, _, control_flow: &mut ControlFlow| {
             *control_flow = ControlFlow::Poll;
 
             if let Event::WindowEvent {
-                event: WindowEvent::CloseRequested | WindowEvent::Destroyed { .. },
+                event: WindowEvent::CloseRequested | WindowEvent::Destroyed,
                 ..
             } = event
             {
-                *control_flow = ControlFlow::Exit;
+                println!("[markdownviewer] Shutting down...");
+                std::process::exit(0);
             }
         },
     );
