@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Markdown Viewer
+Comment=Minimal, fast Markdown viewer with syntax highlighting and Mermaid diagrams
+Exec=markdownviewer %f
+Icon=markdownviewer
+Terminal=false
+Type=Application
+Categories=Utility;Viewer;
+MimeType=text/markdown;text/x-markdown;

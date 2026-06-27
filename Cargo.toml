@@ -43,4 +43,12 @@ section = "utils"
 priority = "optional"
 assets = [
     ["target/release/markdownviewer", "usr/bin/", "755"],
+    ["packaging/markdownviewer.desktop", "usr/share/applications/", "644"],
+    ["icons/app-icon-16.png", "usr/share/icons/hicolor/16x16/apps/markdownviewer.png", "644"],
+    ["icons/app-icon-32.png", "usr/share/icons/hicolor/32x32/apps/markdownviewer.png", "644"],
+    ["icons/app-icon-48.png", "usr/share/icons/hicolor/48x48/apps/markdownviewer.png", "644"],
+    ["icons/app-icon-64.png", "usr/share/icons/hicolor/64x64/apps/markdownviewer.png", "644"],
+    ["icons/app-icon-128.png", "usr/share/icons/hicolor/128x128/apps/markdownviewer.png", "644"],
+    ["icons/app-icon-256.png", "usr/share/icons/hicolor/256x256/apps/markdownviewer.png", "644"],
+    ["icons/app-icon-512.png", "usr/share/icons/hicolor/512x512/apps/markdownviewer.png", "644"],
 ]

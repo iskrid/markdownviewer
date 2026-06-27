@@ -62,6 +62,26 @@ cat notes.md | markdownviewer -
 **Keyboard shortcuts:**
 - `Esc` / `Ctrl+W` — close window
 
+## Desktop Integration
+
+The `.deb` and Arch packages install a `.desktop` entry and icons automatically.
+Markdown files (`*.md`) will be associated with the viewer — right-click any
+`.md` file in your file manager and choose "Open With Markdown Viewer".
+
+The application appears in your desktop menu under **Utility**.
+
+### Manual installation
+
+If you installed from source or the binary tarball, install desktop assets:
+
+```bash
+sudo install -Dm644 packaging/markdownviewer.desktop /usr/share/applications/
+for sz in 16 32 48 64 128 256 512; do
+    sudo install -Dm644 "icons/app-icon-${sz}.png" "/usr/share/icons/hicolor/${sz}x${sz}/apps/markdownviewer.png"
+done
+sudo update-desktop-database
+```
+
 ## Build
 
 ```bash
