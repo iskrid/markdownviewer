@@ -1,7 +1,7 @@
 # Maintainer: iskrid
 
 pkgname=markdownviewer
-pkgver=1.1.4
+pkgver=1.1.6
 pkgrel=1
 pkgdesc="Minimal, fast Markdown viewer with syntax highlighting and Mermaid diagrams"
 arch=(x86_64)
@@ -10,7 +10,7 @@ license=(MIT)
 depends=(webkit2gtk-4.1 gtk3)
 makedepends=(cargo rust)
 source=("https://github.com/iskrid/markdownviewer/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=("519fd1690f4fbbb89c528e612e09d8c1ff5e782a0264f225332044c1b3255e63")
+sha256sums=("a61a22304ecf95820f8c91d9d1061bc77299b061d1b4e0f29e9dba1506f408b8")
 
 prepare() {
     export RUSTUP_TOOLCHAIN=stable
