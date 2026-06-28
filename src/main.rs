@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::env;
 use std::io::Read;
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::{fs, io};
 
@@ -22,8 +21,9 @@ fn main() {
     let (md_text, base_dir_opt) = if let Some(path) = &md_path {
         let loaded = load_markdown(path).unwrap();
         let bd = if path != "-" {
-            PathBuf::from(path)
-                .parent()
+            env::current_dir()
+                .ok()
+                .and_then(|cwd| cwd.join(path).parent().map(|p| p.to_path_buf()))
                 .and_then(|p| p.canonicalize().ok())
         } else {
             None
@@ -61,8 +61,9 @@ fn load_and_render(path: &str) -> Option<String> {
             return None;
         }
     };
-    let bd = PathBuf::from(path)
-        .parent()
+    let bd = env::current_dir()
+        .ok()
+        .and_then(|cwd| cwd.join(path).parent().map(|p| p.to_path_buf()))
         .and_then(|p| p.canonicalize().ok());
     let html_body = render::render(&md_text, bd.as_deref());
     Some(html_body)
@@ -92,11 +93,6 @@ fn run_app(html_doc: String) -> ! {
         .build(&event_loop)
         .expect("failed to create window");
 
-    println!(
-        "[markdownviewer] Webview created with {} bytes of HTML",
-        html_doc.len()
-    );
-
     let webview_rc = Rc::new(RefCell::new(Option::<wry::WebView>::None));
 
     let drag_paths = Rc::new(RefCell::new(Vec::new()));
@@ -107,7 +103,6 @@ fn run_app(html_doc: String) -> ! {
         if body.contains(r#""type":"close""#) {
             std::process::exit(0);
         }
-        println!("[markdownviewer] IPC message received (ignored): {}", body);
     };
 
     let builder = wry::WebViewBuilder::new()
@@ -156,8 +151,6 @@ fn run_app(html_doc: String) -> ! {
 
     *webview_rc.borrow_mut() = Some(webview);
 
-    println!("[markdownviewer] Webview ready, starting event loop...");
-
     event_loop.run(
         move |event: Event<'_, ()>, _event_loop_window_target, control_flow: &mut ControlFlow| {
             *control_flow = ControlFlow::Poll;
@@ -167,7 +160,6 @@ fn run_app(html_doc: String) -> ! {
                 ..
             } = event
             {
-                println!("[markdownviewer] Shutting down...");
                 std::process::exit(0);
             }
 

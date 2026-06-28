@@ -13,6 +13,8 @@ use syntect::html::{append_highlighted_html_for_styled_line, IncludeBackground};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
+use base64::{engine::general_purpose::STANDARD, Engine};
+
 struct SyntectHighlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,
@@ -131,7 +133,7 @@ fn rewrite_relative_urls(html: &str, base_dir: Option<&Path>) -> String {
 
     let re_url = regex::Regex::new(r#"(?P<attr>src|href)\s*=\s*"(?P<path>[^"]*)""#).unwrap();
 
-    re_url
+    let result = re_url
         .replace_all(html, |caps: &regex::Captures| {
             let attr_name = &caps["attr"];
             let path = &caps["path"];
@@ -141,14 +143,46 @@ fn rewrite_relative_urls(html: &str, base_dir: Option<&Path>) -> String {
                 format!(r#"{}="{}""#, attr_name, path)
             } else {
                 let full_path = base.join(path);
+
                 let abs_path = match full_path.canonicalize() {
-                    Ok(p) => p.to_string_lossy().to_string(),
-                    Err(_) => full_path.to_string_lossy().to_string(),
+                    Ok(p) => p,
+                    Err(_) => full_path,
                 };
-                format!(r#"{}="md://asset/{}""#, attr_name, abs_path)
+
+                match std::fs::read(&abs_path) {
+                    Ok(bytes) => {
+                        let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                        let content_type = match ext {
+                            "png" => "image/png",
+                            "jpg" | "jpeg" => "image/jpeg",
+                            "gif" => "image/gif",
+                            "svg" => "image/svg+xml",
+                            "webp" => "image/webp",
+                            "ico" => "image/x-icon",
+                            "bmp" => "image/bmp",
+                            "tiff" | "tif" => "image/tiff",
+                            "pdf" => "application/pdf",
+                            "html" | "htm" => "text/html",
+                            "css" => "text/css",
+                            "js" => "application/javascript",
+                            "json" => "application/json",
+                            "xml" => "application/xml",
+                            "txt" => "text/plain",
+                            _ => "application/octet-stream",
+                        };
+                        let encoded = STANDARD.encode(&bytes);
+                        let data_uri = format!("data:{};base64,{}", content_type, encoded);
+                        format!(r#"{}="{}""#, attr_name, data_uri)
+                    }
+                    Err(_) => {
+                        format!(r#"{}="{}""#, attr_name, path)
+                    }
+                }
             }
         })
-        .to_string()
+        .to_string();
+
+    result
 }
 
 fn transform_mermaid_blocks(html: &str) -> String {
@@ -215,5 +249,7 @@ pub fn render(md_text: &str, base_dir: Option<&Path>) -> String {
 
     let html = comrak::markdown_to_html_with_plugins(md_text, &opts, &plugins);
 
-    transform_mermaid_blocks(&rewrite_relative_urls(&html, base_dir))
+    let with_urls = rewrite_relative_urls(&html, base_dir);
+
+    transform_mermaid_blocks(&with_urls)
 }

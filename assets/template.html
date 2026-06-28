@@ -22,7 +22,7 @@ mermaid.initialize({startOnLoad: true});
 </script>
 <script>
 document.addEventListener('keydown', function(e) {
-    if (e.ctrlKey && (e.key === 'd' || e.key === 'D' || e.key === 'q' || e.key === 'Q' || e.key === 'w' || e.key === 'W' || e.key === 'c' || e.key === 'C')) {
+    if (e.ctrlKey && (e.key === 'd' || e.key === 'D' || e.key === 'q' || e.key === 'Q' || e.key === 'w' || e.key === 'W')) {
         e.preventDefault();
         window.ipc.postMessage('{"type":"close"}');
     }
