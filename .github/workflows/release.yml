@@ -58,3 +58,29 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: markdownviewer_*_amd64.tar.gz
+
+  update-pkgbuild:
+    runs-on: ubuntu-24.04
+    needs: [build-binary]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update PKGBUILD sha256sum
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          TAG_URL="https://github.com/${{ github.repository }}/archive/refs/tags/${VERSION}.tar.gz"
+          curl -sL "$TAG_URL" -o /tmp/release.tar.gz
+          NEW_SHA=$(sha256sum /tmp/release.tar.gz | cut -d' ' -f1)
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/PKGBUILD
+          sed -i "s/^sha256sums=(.*)/sha256sums=(\"${NEW_SHA}\")/" packaging/PKGBUILD
+
+      - name: Commit and push PKGBUILD
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packaging/PKGBUILD
+          git commit -m "fix: update PKGBUILD for ${{ github.ref_name }}" || echo "No changes to commit"
+          git push origin HEAD:master
