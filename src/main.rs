@@ -172,6 +172,14 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     let current_path_rc = Rc::new(RefCell::new(current_path));
     let current_path_ipc = Rc::clone(&current_path_rc);
 
+    let window_rc_title = Rc::clone(&window_rc);
+    let title_handler = move |title: String| {
+        let mut win_ref = window_rc_title.borrow_mut();
+        if let Some(win) = &mut *win_ref {
+            win.set_title(&title);
+        }
+    };
+
     let ipc_handler = move |request: http::Request<String>| {
         let body = request.body();
         if body.contains(r#""type":"close""#) {
@@ -201,6 +209,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     let builder = wry::WebViewBuilder::new()
         .with_html(html_doc)
         .with_ipc_handler(ipc_handler)
+        .with_document_title_changed_handler(title_handler)
         .with_drag_drop_handler(move |event: DragDropEvent| -> bool {
             match event {
                 DragDropEvent::Drop { paths, .. } => {
@@ -250,7 +259,6 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     *webview_rc.borrow_mut() = Some(webview);
 
     let webview_rc_event = Rc::clone(&webview_rc);
-    let window_rc_event = Rc::clone(&window_rc);
     let current_path_event = Rc::clone(&current_path_rc);
     let navigate_paths_event = Rc::clone(&navigate_paths);
 
@@ -280,17 +288,9 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                         "replaceContent('{}'); document.title = '{}';",
                         escaped, escaped_title
                     );
-                    {
-                        let mut wv_ref = webview_rc_event.borrow_mut();
-                        if let Some(wv) = &mut *wv_ref {
-                            let _ = wv.evaluate_script(&js);
-                        }
-                    }
-                    {
-                        let mut win_ref = window_rc_event.borrow_mut();
-                        if let Some(win) = &mut *win_ref {
-                            win.set_title(&format!("{} — Markdown Viewer", title));
-                        }
+                    let mut wv_ref = webview_rc_event.borrow_mut();
+                    if let Some(wv) = &mut *wv_ref {
+                        let _ = wv.evaluate_script(&js);
                     }
                 }
             }
@@ -312,17 +312,9 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                         "replaceContent('{}'); document.title = '{}';",
                         escaped, escaped_title
                     );
-                    {
-                        let mut wv_ref = webview_rc_event.borrow_mut();
-                        if let Some(wv) = &mut *wv_ref {
-                            let _ = wv.evaluate_script(&js);
-                        }
-                    }
-                    {
-                        let mut win_ref = window_rc_event.borrow_mut();
-                        if let Some(win) = &mut *win_ref {
-                            win.set_title(&format!("{} — Markdown Viewer", title));
-                        }
+                    let mut wv_ref = webview_rc_event.borrow_mut();
+                    if let Some(wv) = &mut *wv_ref {
+                        let _ = wv.evaluate_script(&js);
                     }
                     *current_path_event.borrow_mut() = Some(path);
                 }
