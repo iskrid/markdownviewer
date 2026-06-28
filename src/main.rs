@@ -46,7 +46,12 @@ fn main() {
     } else {
         "<div class=\"empty-state\">*.md</div>".to_string()
     };
-    let full_doc = assets::get_full_document(&html_body);
+    let initial_title = current_path
+        .as_ref()
+        .and_then(|p| p.file_name())
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Markdown Viewer".to_string());
+    let full_doc = assets::get_full_document(&html_body, &initial_title);
 
     run_app(full_doc, current_path)
 }
@@ -176,7 +181,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     let title_handler = move |title: String| {
         let mut win_ref = window_rc_title.borrow_mut();
         if let Some(win) = &mut *win_ref {
-            win.set_title(&title);
+            win.set_title(&format!("{} — Markdown Viewer", title));
         }
     };
 
