@@ -280,13 +280,17 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                         "replaceContent('{}'); document.title = '{}';",
                         escaped, escaped_title
                     );
-                    let mut wv_ref = webview_rc_event.borrow_mut();
-                    if let Some(wv) = &mut *wv_ref {
-                        let _ = wv.evaluate_script(&js);
+                    {
+                        let mut wv_ref = webview_rc_event.borrow_mut();
+                        if let Some(wv) = &mut *wv_ref {
+                            let _ = wv.evaluate_script(&js);
+                        }
                     }
-                    let mut win_ref = window_rc_event.borrow_mut();
-                    if let Some(win) = &mut *win_ref {
-                        win.set_title(&format!("{} — Markdown Viewer", title));
+                    {
+                        let mut win_ref = window_rc_event.borrow_mut();
+                        if let Some(win) = &mut *win_ref {
+                            win.set_title(&format!("{} — Markdown Viewer", title));
+                        }
                     }
                 }
             }

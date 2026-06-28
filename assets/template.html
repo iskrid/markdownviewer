@@ -25,6 +25,9 @@ document.addEventListener('keydown', function(e) {
     if (e.ctrlKey && (e.key === 'd' || e.key === 'D' || e.key === 'q' || e.key === 'Q' || e.key === 'w' || e.key === 'W')) {
         e.preventDefault();
         window.ipc.postMessage('{"type":"close"}');
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        window.ipc.postMessage('{"type":"close"}');
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         window.ipc.postMessage('{"type":"navigate","direction":"' + e.key.replace('ArrowLeft', 'prev').replace('ArrowRight', 'next') + '"}');
