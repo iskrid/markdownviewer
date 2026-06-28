@@ -16,7 +16,7 @@ Minimal, fast Markdown viewer GUI for Linux. Renders Markdown in a system webvie
 | Code highlighting| `syntect` — `default-fancy` (pure-Rust, no oniguruma C dep) |
 | File drag-drop   | `wry::with_drag_drop_handler` |
 | External links   | `webbrowser`               |
-| Temp files       | `tempfile`                 |
+| Base64 encoding  | `base64`                   |
 
 Critical: comrak must NOT have the `syntect` feature enabled — that would pull `default-onig` via feature unification. The custom `SyntaxHighlighterAdapter` in `render.rs` uses our own pure-Rust syntect instance instead.
 
@@ -50,6 +50,16 @@ cat foo.md | ./target/release/markdownviewer -
 ```
 
 Always run `cargo fmt`, `cargo clippy`, and `cargo build --release` before declaring a task done.
+
+## GitHub loop
+
+After completing a task and verifying locally:
+
+1. `git add` changed files, `git commit` with concise message, `git push origin master`
+2. Check CI build action: `gh run list --limit 3` — wait for green checkmark
+3. If build fails, fix and repeat
+
+Do not create PRs — push directly to `master`.
 
 ## Architecture
 
