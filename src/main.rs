@@ -254,10 +254,39 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
 
     *webview_rc.borrow_mut() = Some(webview);
 
+    #[cfg(target_os = "linux")]
+    let headerbar_rc = {
+        use gtk::prelude::{GtkWindowExt, WidgetExt};
+        use tao::platform::unix::WindowExtUnix;
+        let win_ref = window_rc.borrow();
+        let win = win_ref.as_ref().unwrap();
+        let gtk_win = win.gtk_window();
+        let header = gtk::HeaderBar::new();
+        use gtk::prelude::HeaderBarExt;
+        header.set_show_close_button(false);
+        let init_title = format!(
+            "{} — Markdown Viewer",
+            current_path_rc
+                .borrow()
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .map(|f| f.to_string_lossy())
+                .unwrap_or_else(|| "Markdown Viewer".into())
+        );
+        header.set_title(Some(&init_title));
+        gtk_win.set_titlebar(Some(&header));
+        gtk_win.show_all();
+        Rc::new(RefCell::new(Some(header)))
+    };
+
+    #[cfg(not(target_os = "linux"))]
+    let headerbar_rc = Rc::new(RefCell::new(None));
+
     let webview_rc_event = Rc::clone(&webview_rc);
     let window_rc_event = Rc::clone(&window_rc);
     let current_path_event = Rc::clone(&current_path_rc);
     let navigate_paths_event = Rc::clone(&navigate_paths);
+    let headerbar_event = Rc::clone(&headerbar_rc);
 
     event_loop.run(
         move |event: Event<'_, ()>, _event_loop_window_target, control_flow: &mut ControlFlow| {
@@ -289,13 +318,21 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                     if let Some(wv) = &mut *wv_ref {
                         let _ = wv.evaluate_script(&js);
                     }
+                    let new_title = format!("{} — Markdown Viewer", title);
                     {
                         use gtk::prelude::GtkWindowExt;
                         use tao::platform::unix::WindowExtUnix;
                         let win_ref = window_rc_event.borrow();
                         if let Some(win) = &*win_ref {
-                            let new_title = format!("{} — Markdown Viewer", title);
                             win.gtk_window().set_title(&new_title);
+                        }
+                    }
+                    #[cfg(target_os = "linux")]
+                    {
+                        use gtk::prelude::HeaderBarExt;
+                        let hb = headerbar_event.borrow();
+                        if let Some(h) = &*hb {
+                            h.set_title(Some(&new_title));
                         }
                     }
                 }
@@ -322,13 +359,21 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                     if let Some(wv) = &mut *wv_ref {
                         let _ = wv.evaluate_script(&js);
                     }
+                    let new_title = format!("{} — Markdown Viewer", title);
                     {
                         use gtk::prelude::GtkWindowExt;
                         use tao::platform::unix::WindowExtUnix;
                         let win_ref = window_rc_event.borrow();
                         if let Some(win) = &*win_ref {
-                            let new_title = format!("{} — Markdown Viewer", title);
                             win.gtk_window().set_title(&new_title);
+                        }
+                    }
+                    #[cfg(target_os = "linux")]
+                    {
+                        use gtk::prelude::HeaderBarExt;
+                        let hb = headerbar_event.borrow();
+                        if let Some(h) = &*hb {
+                            h.set_title(Some(&new_title));
                         }
                     }
                     *current_path_event.borrow_mut() = Some(path);
