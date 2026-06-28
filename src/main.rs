@@ -183,27 +183,32 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
             } else {
                 return;
             };
-            let cp = current_path_ipc.borrow();
-            if let Some(current) = &*cp {
-                if let Some(next_path) = find_sibling_md_files(current, direction) {
-                    if let Some(body) = load_and_render_path(&next_path) {
-                        let escaped = escape_js_string(&body);
-                        let title = next_path.file_name().unwrap_or_default().to_string_lossy();
-                        let escaped_title = escape_js_string(&title);
-                        let js = format!(
-                            "replaceContent('{}'); document.title = '{}';",
-                            escaped, escaped_title
-                        );
-                        let mut wv_ref = webview_rc_ipc.borrow_mut();
-                        if let Some(wv) = &mut *wv_ref {
-                            let _ = wv.evaluate_script(&js);
-                        }
-                        let mut win_ref = window_rc_ipc.borrow_mut();
-                        if let Some(win) = &mut *win_ref {
-                            win.set_title(&format!("{} — Markdown Viewer", title));
-                        }
-                        *current_path_ipc.borrow_mut() = Some(next_path);
+            let next_path = {
+                let cp = current_path_ipc.borrow();
+                if let Some(current) = &*cp {
+                    find_sibling_md_files(current, direction)
+                } else {
+                    None
+                }
+            };
+            if let Some(next_path) = next_path {
+                if let Some(body) = load_and_render_path(&next_path) {
+                    let escaped = escape_js_string(&body);
+                    let title = next_path.file_name().unwrap_or_default().to_string_lossy();
+                    let escaped_title = escape_js_string(&title);
+                    let js = format!(
+                        "replaceContent('{}'); document.title = '{}';",
+                        escaped, escaped_title
+                    );
+                    if let Some(wv) = webview_rc_ipc.borrow_mut().take() {
+                        let _ = wv.evaluate_script(&js);
+                        webview_rc_ipc.borrow_mut().replace(wv);
                     }
+                    if let Some(win) = window_rc_ipc.borrow_mut().take() {
+                        win.set_title(&format!("{} — Markdown Viewer", title));
+                        window_rc_ipc.borrow_mut().replace(win);
+                    }
+                    *current_path_ipc.borrow_mut() = Some(next_path);
                 }
             }
         }
