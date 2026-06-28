@@ -166,10 +166,11 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     let drag_paths = Rc::new(RefCell::new(Vec::new()));
     let drag_paths_clone = Rc::clone(&drag_paths);
 
+    let navigate_paths = Rc::new(RefCell::new(Vec::new()));
+    let navigate_paths_clone = Rc::clone(&navigate_paths);
+
     let current_path_rc = Rc::new(RefCell::new(current_path));
     let current_path_ipc = Rc::clone(&current_path_rc);
-    let webview_rc_ipc = Rc::clone(&webview_rc);
-    let window_rc_ipc = Rc::clone(&window_rc);
 
     let ipc_handler = move |request: http::Request<String>| {
         let body = request.body();
@@ -192,24 +193,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                 }
             };
             if let Some(next_path) = next_path {
-                if let Some(body) = load_and_render_path(&next_path) {
-                    let escaped = escape_js_string(&body);
-                    let title = next_path.file_name().unwrap_or_default().to_string_lossy();
-                    let escaped_title = escape_js_string(&title);
-                    let js = format!(
-                        "replaceContent('{}'); document.title = '{}';",
-                        escaped, escaped_title
-                    );
-                    if let Some(wv) = webview_rc_ipc.borrow_mut().take() {
-                        let _ = wv.evaluate_script(&js);
-                        webview_rc_ipc.borrow_mut().replace(wv);
-                    }
-                    if let Some(win) = window_rc_ipc.borrow_mut().take() {
-                        win.set_title(&format!("{} — Markdown Viewer", title));
-                        window_rc_ipc.borrow_mut().replace(win);
-                    }
-                    *current_path_ipc.borrow_mut() = Some(next_path);
-                }
+                navigate_paths_clone.borrow_mut().push(next_path);
             }
         }
     };
@@ -268,6 +252,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     let webview_rc_event = Rc::clone(&webview_rc);
     let window_rc_event = Rc::clone(&window_rc);
     let current_path_event = Rc::clone(&current_path_rc);
+    let navigate_paths_event = Rc::clone(&navigate_paths);
 
     event_loop.run(
         move |event: Event<'_, ()>, _event_loop_window_target, control_flow: &mut ControlFlow| {
@@ -303,6 +288,39 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
                     if let Some(win) = &mut *win_ref {
                         win.set_title(&format!("{} — Markdown Viewer", title));
                     }
+                }
+            }
+
+            let next_path = {
+                let mut nav_pending = navigate_paths_event.borrow_mut();
+                nav_pending.pop()
+            };
+            if let Some(path) = next_path {
+                if let Some(body) = load_and_render_path(&path) {
+                    let escaped = escape_js_string(&body);
+                    let title = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let escaped_title = escape_js_string(&title);
+                    let js = format!(
+                        "replaceContent('{}'); document.title = '{}';",
+                        escaped, escaped_title
+                    );
+                    {
+                        let mut wv_ref = webview_rc_event.borrow_mut();
+                        if let Some(wv) = &mut *wv_ref {
+                            let _ = wv.evaluate_script(&js);
+                        }
+                    }
+                    {
+                        let mut win_ref = window_rc_event.borrow_mut();
+                        if let Some(win) = &mut *win_ref {
+                            win.set_title(&format!("{} — Markdown Viewer", title));
+                        }
+                    }
+                    *current_path_event.borrow_mut() = Some(path);
                 }
             }
         },
