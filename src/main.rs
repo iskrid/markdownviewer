@@ -262,7 +262,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
         let win = win_ref.as_ref().unwrap();
         let gtk_win = win.gtk_window();
         let display = gtk::gdk::Display::default().expect("no display");
-        let is_wayland = display.type_().name() == "WaylandDisplay";
+        let is_wayland = display.type_().name().contains("Wayland");
         if is_wayland {
             let header = gtk::HeaderBar::new();
             use gtk::prelude::HeaderBarExt;
@@ -292,7 +292,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
     let window_rc_event = Rc::clone(&window_rc);
     let current_path_event = Rc::clone(&current_path_rc);
     let navigate_paths_event = Rc::clone(&navigate_paths);
-    let headerbar_event = Rc::clone(&headerbar_rc);
+    let headerbar_event: Rc<RefCell<Option<gtk::HeaderBar>>> = Rc::clone(&headerbar_rc);
 
     event_loop.run(
         move |event: Event<'_, ()>, _event_loop_window_target, control_flow: &mut ControlFlow| {
