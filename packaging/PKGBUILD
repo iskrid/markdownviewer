@@ -10,7 +10,7 @@ license=(MIT)
 depends=(webkit2gtk-4.1 gtk3)
 makedepends=(cargo rust)
 source=("https://github.com/iskrid/markdownviewer/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=("d5eb925f74b248100774f91a3e1e5bfc83e543a590d141b957e14eca6e74dee6")
+sha256sums=("d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed")
 
 prepare() {
     export RUSTUP_TOOLCHAIN=stable
