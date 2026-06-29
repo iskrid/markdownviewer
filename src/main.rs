@@ -296,7 +296,7 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
 
     event_loop.run(
         move |event: Event<'_, ()>, _event_loop_window_target, control_flow: &mut ControlFlow| {
-            *control_flow = ControlFlow::Poll;
+            *control_flow = ControlFlow::Wait;
 
             if let Event::WindowEvent {
                 event: WindowEvent::CloseRequested | WindowEvent::Destroyed,
