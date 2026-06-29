@@ -1,6 +1,6 @@
 [package]
 name = "markdownviewer"
-version = "1.1.7"
+version = "1.1.8"
 edition = "2021"
 rust-version = "1.85"
 description = "Minimal, fast Markdown viewer with syntax highlighting and Mermaid diagrams"
