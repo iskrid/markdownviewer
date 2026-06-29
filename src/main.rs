@@ -265,21 +265,8 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
         let is_wayland = display.type_().name().contains("Wayland");
         if is_wayland {
             let header = gtk::HeaderBar::new();
-            use gtk::prelude::{ButtonExt, ContainerExt, HeaderBarExt};
+            use gtk::prelude::HeaderBarExt;
             header.set_show_close_button(true);
-            let maximize_btn = gtk::Button::new();
-            let maximize_icon =
-                gtk::Image::from_icon_name(Some("window-maximize-symbolic"), gtk::IconSize::Button);
-            maximize_btn.set_child(Some(&maximize_icon));
-            let gtk_win_max = gtk_win.clone();
-            maximize_btn.connect_clicked(move |_| {
-                if gtk_win_max.is_maximized() {
-                    gtk_win_max.unmaximize();
-                } else {
-                    gtk_win_max.maximize();
-                }
-            });
-            header.pack_end(&maximize_btn);
             let init_title = format!(
                 "{} — Markdown Viewer",
                 current_path_rc
