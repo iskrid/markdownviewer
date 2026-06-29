@@ -65,7 +65,7 @@ markdownviewer
 ```
 
 **Keyboard shortcuts:**
-- `Esc`, `Ctrl+W`, `Ctrl+Q`, `Ctrl+C`, `Ctrl+D` — close window
+- `Esc`, `q`, `Ctrl+W`, `Ctrl+Q`, `Ctrl+C`, `Ctrl+D` — close window
 - `←`, `→` — navigate to previous/next `.md` file in same directory
 
 ## Desktop Integration
