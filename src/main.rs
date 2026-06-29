@@ -267,15 +267,6 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
             let header = gtk::HeaderBar::new();
             use gtk::prelude::{ButtonExt, ContainerExt, HeaderBarExt};
             header.set_show_close_button(true);
-            let minimize_btn = gtk::Button::new();
-            let minimize_icon =
-                gtk::Image::from_icon_name(Some("window-minimize-symbolic"), gtk::IconSize::Button);
-            minimize_btn.set_child(Some(&minimize_icon));
-            let gtk_win_min = gtk_win.clone();
-            minimize_btn.connect_clicked(move |_| {
-                gtk_win_min.hide();
-            });
-            header.pack_end(&minimize_btn);
             let maximize_btn = gtk::Button::new();
             let maximize_icon =
                 gtk::Image::from_icon_name(Some("window-maximize-symbolic"), gtk::IconSize::Button);
