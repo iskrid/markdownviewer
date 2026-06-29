@@ -256,27 +256,33 @@ fn run_app(html_doc: String, current_path: Option<PathBuf>) -> ! {
 
     #[cfg(target_os = "linux")]
     let headerbar_rc = {
-        use gtk::prelude::{GtkWindowExt, WidgetExt};
+        use gtk::prelude::{GtkWindowExt, ObjectExt, WidgetExt};
         use tao::platform::unix::WindowExtUnix;
         let win_ref = window_rc.borrow();
         let win = win_ref.as_ref().unwrap();
         let gtk_win = win.gtk_window();
-        let header = gtk::HeaderBar::new();
-        use gtk::prelude::HeaderBarExt;
-        header.set_show_close_button(false);
-        let init_title = format!(
-            "{} — Markdown Viewer",
-            current_path_rc
-                .borrow()
-                .as_ref()
-                .and_then(|p| p.file_name())
-                .map(|f| f.to_string_lossy())
-                .unwrap_or_else(|| "Markdown Viewer".into())
-        );
-        header.set_title(Some(&init_title));
-        gtk_win.set_titlebar(Some(&header));
-        gtk_win.show_all();
-        Rc::new(RefCell::new(Some(header)))
+        let display = gtk::gdk::Display::default().expect("no display");
+        let is_wayland = display.type_().name() == "WaylandDisplay";
+        if is_wayland {
+            let header = gtk::HeaderBar::new();
+            use gtk::prelude::HeaderBarExt;
+            header.set_show_close_button(false);
+            let init_title = format!(
+                "{} — Markdown Viewer",
+                current_path_rc
+                    .borrow()
+                    .as_ref()
+                    .and_then(|p| p.file_name())
+                    .map(|f| f.to_string_lossy())
+                    .unwrap_or_else(|| "Markdown Viewer".into())
+            );
+            header.set_title(Some(&init_title));
+            gtk_win.set_titlebar(Some(&header));
+            gtk_win.show_all();
+            Rc::new(RefCell::new(Some(header)))
+        } else {
+            Rc::new(RefCell::new(None))
+        }
     };
 
     #[cfg(not(target_os = "linux"))]
