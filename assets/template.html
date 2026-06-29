@@ -12,7 +12,7 @@
 function replaceContent(bodyHtml) {
     document.body.innerHTML = bodyHtml;
     if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({startOnLoad: false});
+        mermaid.initialize({startOnLoad: false, animate: false, elk: { animate: false }});
         mermaid.run().catch(function(e) { console.error('[mdviewer] mermaid error:', e); });
     }
 }
